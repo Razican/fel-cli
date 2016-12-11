@@ -12,7 +12,6 @@ keywords = ["arm", "sunxi", "allwinner", "fel"]
 
 [dependencies]
 error-chain = "0.7"
-libusb = "0.3"
-aw-fel = "0.1"
+aw-fel = "0.2"
 clap = "2.19"
 ansi_term = "0.9"

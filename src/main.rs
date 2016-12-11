@@ -13,7 +13,6 @@
 
 #[macro_use]
 extern crate error_chain;
-// extern crate libusb;
 extern crate aw_fel;
 #[macro_use]
 extern crate clap;
@@ -22,7 +21,7 @@ extern crate ansi_term;
 use std::io::{self, Write, Read, BufWriter, BufReader};
 use std::fs::File;
 
-use aw_fel::Fel;
+use aw_fel::{Fel, SPL_LEN_LIMIT};
 use ansi_term::Colour::Red;
 use ansi_term::Style;
 
@@ -52,15 +51,6 @@ use config::{Config, Command, WriteData};
 
 const HEX_DUMP_LINE: usize = 0x10;
 
-// use error::Result;
-
-// /// Timeout for boot wait, in seconds.
-// const TIMEOUT: u64 = 100;
-// /// C.H.I.P. USB vendor ID.
-// const CHIP_VENDOR_ID: u16 = 0x0525;
-// /// C.H.I.P. USB product ID.
-// const CHIP_PRODUCT_ID: u16 = 0xa4a7;
-
 fn main() {
     if let Err(e) = run() {
         io::stderr()
@@ -78,6 +68,11 @@ fn main() {
 
 fn run() -> Result<()> {
     let config = Config::from_cli(cli::generate_cli().get_matches())?;
+    if config.get_command().is_none() {
+        println!("{} No command specified.",
+                 Style::new().bold().paint("Warning:"));
+        return Ok(());
+    }
     let fel = Fel::new().chain_err(|| "unable to initialize the tool")?;
 
     let device = if let Some((bus, addr)) = config.get_device() {
@@ -95,116 +90,138 @@ fn run() -> Result<()> {
         }
     };
 
-    if let Some(cmd) = config.get_command() {
-        match *cmd {
-            Command::Dump { address, size, hex, sid, ref out } => {
-                if sid {
-                    if let Some(sid) = device.read_sid()
-                        .chain_err(|| "unable to get SID from device")? {
-                        println!("{:08x}:{:08x}:{:08x}:{:08x}",
-                                 sid[0],
-                                 sid[1],
-                                 sid[2],
-                                 sid[3]);
-                    } else {
-                        bail!("the device does not have SID registers");
-                    }
-                } else if size.is_some() {
-                    let (address, size) = (address.unwrap(), size.unwrap());
-                    let mut result = vec![0u8; size as usize];
-                    device.fel_read(address, &mut result)
-                        .chain_err(|| {
-                            format!("could not read {:#010x} bytes at memory address {:#010x}",
-                                    size,
-                                    address)
-                        })?;
-                    if hex {
-                        hex_dump(&result, address);
-                    } else if let &Some(ref out_path) = out {
-                        let mut file = BufWriter::new(File::create(out_path)
-                                    .chain_err(|| "unable to create output file")?);
-                        file.write_all(&result)
-                            .chain_err(|| "unable to write dumped data to file")?;
-                    } else {
-                        io::stdout().write_all(&result)
-                            .chain_err(|| "unable to write dumped data to stdout")?;
-                    }
-                } else {
-                    let addr = address.unwrap();
-                    let mut val = [0u32];
-                    device.read_words(addr, &mut val)
-                        .chain_err(|| format!("unable to read {:#010x} address", addr))?;
-                    println!("{:#010x}", val[0]);
-                }
-            }
-            Command::Write { ref addresses, ref data } => {
-                for (addr, data) in addresses.iter().zip(data) {
-                    match *data {
-                        WriteData::Word(w) => {
-                            device.write_words(*addr, &[w])
-                                .chain_err(|| {
-                                    format!("could not write word {:#010x} to address {:#010x}",
-                                            w,
-                                            addr)
-                                })?;
-                            println!("Wrote word {:#010x} to address {:#010x}", w, addr);
-                        }
-                        WriteData::File(ref path) => {
-                            let file = File::open(path.as_ref()).chain_err(|| {
-                                    format!("could not open the file '{}'", path.display())
-                                })?;
-                            let mut reader = BufReader::new(file);
-                            let mut data = Vec::new();
-                            let _ = reader.read_to_end(&mut data)
-                                .chain_err(|| {
-                                    format!("could not read data from file '{}'", path.display())
-                                })?;
-                            device.fel_write(*addr, &data)
-                                .chain_err(|| "could not write file data to device memory")?;
+    match *config.get_command().unwrap() {
+        Command::Uboot { ref file, start_uboot } => {
+            // Load file.
+            let mut reader =
+                BufReader::new(File::open(file).chain_err(|| "could not open U-Boot file")?);
+            let mut contents = Vec::new();
+            let _ = reader.read_to_end(&mut contents)
+                .chain_err(|| "could not read U-Boot file")?;
 
-                            println!("Wrote contents of file '{}' to address {:#010x}",
-                                     path.display(),
-                                     addr);
-                        }
-                    }
+            if start_uboot && contents.len() <= SPL_LEN_LIMIT as usize {
+                bail!("the provided file does not contain a valid U-Boot image to be executed");
+            }
+
+            // Write and execute the SPL from the buffer.
+            device.write_and_execute_spl(&contents)
+                .chain_err(|| "there was an error trying to write SPL to memory or executing it")?;
+
+            if contents.len() > SPL_LEN_LIMIT as usize {
+                let (entry_point, _) = device.write_uboot_image(&contents[SPL_LEN_LIMIT as usize..])
+                    .chain_err(|| "could not write U-Boot image to device after writting the SPL")?;
+                if start_uboot {
+                    device.fel_execute(entry_point).chain_err(|| "could not execute U-Boot")?;
+                } else {
+                    println!("{:#010x}", entry_point);
                 }
-            }
-            Command::Execute { address } => {
-                device.fel_execute(address)
-                    .chain_err(|| format!("unable to execute code at address {:#010x}", address))?;
-            }
-            Command::Reset64 { address } => {
-                device.rmr_request(address, true)
-                    .chain_err(|| "could not send the warm RMR reset request")?;
-                println!("Warm RMR reset request sent");
-            }
-            Command::Version => println!("{:?}", device.get_version_info()),
-            Command::Clear { address, num_bytes } => {
-                device.fel_fill(address, num_bytes, 0x00)
-                    .chain_err(|| {
-                        format!("unable to clear {} bytes at address {:#010x}",
-                                num_bytes,
-                                address)
-                    })?;
-                println!("Cleared {} bytes at address {:#010x}", num_bytes, address);
-            }
-            Command::Fill { address, num_bytes, fill_byte } => {
-                device.fel_fill(address, num_bytes, fill_byte)
-                    .chain_err(|| {
-                        format!("unable to fill {} bytes at address {:#010x} with byte {:#04x}",
-                                num_bytes,
-                                address,
-                                fill_byte)
-                    })?;
-                println!("Filled {} bytes at address {:#010x} with byte {:#04x}",
-                         num_bytes,
-                         address,
-                         fill_byte);
             }
         }
-    } else {
-        println!("{} No command specified.",
-                 Style::new().bold().paint("Warning:"));
+        Command::Dump { address, size, hex, sid, ref out } => {
+            if sid {
+                if let Some(sid) = device.read_sid()
+                    .chain_err(|| "unable to get SID from device")? {
+                    println!("{:08x}:{:08x}:{:08x}:{:08x}",
+                             sid[0],
+                             sid[1],
+                             sid[2],
+                             sid[3]);
+                } else {
+                    bail!("the device does not have SID registers");
+                }
+            } else if size.is_some() {
+                let (address, size) = (address.unwrap(), size.unwrap());
+                let mut result = vec![0u8; size as usize];
+                device.fel_read(address, &mut result)
+                    .chain_err(|| {
+                        format!("could not read {:#010x} bytes at memory address {:#010x}",
+                                size,
+                                address)
+                    })?;
+                if hex {
+                    hex_dump(&result, address);
+                } else if let Some(ref out_path) = *out {
+                    let mut file = BufWriter::new(File::create(out_path)
+                                    .chain_err(|| "unable to create output file")?);
+                    file.write_all(&result)
+                        .chain_err(|| "unable to write dumped data to file")?;
+                } else {
+                    io::stdout().write_all(&result)
+                        .chain_err(|| "unable to write dumped data to stdout")?;
+                }
+            } else {
+                let addr = address.unwrap();
+                let mut val = [0u32];
+                device.read_words(addr, &mut val)
+                    .chain_err(|| format!("unable to read {:#010x} address", addr))?;
+                println!("{:#010x}", val[0]);
+            }
+        }
+        Command::Write { ref addresses, ref data } => {
+            for (addr, data) in addresses.iter().zip(data) {
+                match *data {
+                    WriteData::Word(w) => {
+                        device.write_words(*addr, &[w])
+                            .chain_err(|| {
+                                format!("could not write word {:#010x} to address {:#010x}",
+                                        w,
+                                        addr)
+                            })?;
+                        println!("Wrote word {:#010x} to address {:#010x}", w, addr);
+                    }
+                    WriteData::File(ref path) => {
+                        let file =
+                            File::open(path.as_ref()).chain_err(|| {
+                                    format!("could not open the file '{}'", path.display())
+                                })?;
+                        let mut reader = BufReader::new(file);
+                        let mut data = Vec::new();
+                        let _ = reader.read_to_end(&mut data)
+                            .chain_err(|| {
+                                format!("could not read data from file '{}'", path.display())
+                            })?;
+                        device.fel_write(*addr, &data)
+                            .chain_err(|| "could not write file data to device memory")?;
+
+                        println!("Wrote contents of file '{}' to address {:#010x}",
+                                 path.display(),
+                                 addr);
+                    }
+                }
+            }
+        }
+        Command::Execute { address } => {
+            device.fel_execute(address)
+                .chain_err(|| format!("unable to execute code at address {:#010x}", address))?;
+        }
+        Command::Reset64 { address } => {
+            device.rmr_request(address, true)
+                .chain_err(|| "could not send the warm RMR reset request")?;
+            println!("Warm RMR reset request sent");
+        }
+        Command::Version => println!("{:?}", device.get_version_info()),
+        Command::Clear { address, num_bytes } => {
+            device.fel_fill(address, num_bytes, 0x00)
+                .chain_err(|| {
+                    format!("unable to clear {} bytes at address {:#010x}",
+                            num_bytes,
+                            address)
+                })?;
+            println!("Cleared {} bytes at address {:#010x}", num_bytes, address);
+        }
+        Command::Fill { address, num_bytes, fill_byte } => {
+            device.fel_fill(address, num_bytes, fill_byte)
+                .chain_err(|| {
+                    format!("unable to fill {} bytes at address {:#010x} with byte {:#04x}",
+                            num_bytes,
+                            address,
+                            fill_byte)
+                })?;
+            println!("Filled {} bytes at address {:#010x} with byte {:#04x}",
+                     num_bytes,
+                     address,
+                     fill_byte);
+        }
     }
 
     Ok(())
@@ -233,46 +250,3 @@ fn hex_dump(data: &[u8], offset: u32) {
         println!("{:08x}: {} {}", start_address, bytes, ascii);
     }
 }
-
-
-
-// println!("Waiting for C.H.I.P. boot...");
-// match wait_boot(Duration::from_secs(TIMEOUT)) {
-//     Ok(true) => println!("C.H.I.P. booted!"),
-//     Ok(false) => println!("Timeout reached but C.H.I.P. didn't boot."),
-//     Err(e) => println!("An error occurred: {:?}, ({})", e, e.description()),
-// }
-
-// /// Wait for C.H.I.P. boot.
-// ///
-// /// A timeout parameter indicates how much to wait for the C.H.I.P. to boot. The function will
-// wait
-// /// for **at least** that time. So, for example, if the timeout is 100 seconds, it could happen
-// /// that the function returns after up to 100,5 seconds. It will rarely return 250 ms after the
-// /// timeout has been reached.
-// fn wait_boot(timeout: Duration) -> Result<bool> {
-//     use std::thread::sleep;
-//     use std::time::Instant;
-//
-//     let start = Instant::now();
-//     while start.elapsed() < timeout && !has_booted()? {
-//         sleep(Duration::from_millis(250));
-//     }
-//     has_booted()
-// }
-
-// /// Checks wether the C.H.I.P. has booted or not.
-// ///
-// /// Uses libUSB to check if a product with vendor ID 0x0525 and product ID 0xa4a7 is connected.
-// /// This is the ID of the C.H.I.P.
-// fn has_booted() -> Result<bool> {
-//     let context = libusb::Context::new()?;
-//     for device in context.devices()?.iter() {
-//         let device_descriptor = device.device_descriptor()?;
-//         if device_descriptor.vendor_id() == CHIP_VENDOR_ID &&
-//            device_descriptor.product_id() == CHIP_PRODUCT_ID {
-//             return Ok(true);
-//         }
-//     }
-//     Ok(false)
-// }

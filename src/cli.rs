@@ -11,6 +11,18 @@ pub fn generate_cli() -> App<'static, 'static> {
             .long("device")
             .value_name("bus:addr")
             .takes_value(true))
+        .subcommand(SubCommand::with_name("spl")
+            .about("Loads and executes U-Boot SPL. If file additionally contains a main U-Boot \
+                    binary, it will transfer it to memory and print the entry point address, in \
+                    hex")
+            .arg(Arg::with_name("file")
+                .help("The binary file with the SPL")
+                .takes_value(true)
+                .required(true))
+            .arg(Arg::with_name("exec")
+                .help("Execute U-Boot binary instead of printing the entry point address")
+                .short("x")
+                .long("exec")))
         .subcommand(SubCommand::with_name("dump")
             .about("Dumps memory region in binary through stdout")
             .arg(Arg::with_name("addr")
