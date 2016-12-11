@@ -1,0 +1,64 @@
+language: rust
+cache: cargo
+dist: trusty
+sudo: false
+os:
+  - linux
+  - osx
+addons:
+  apt:
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - binutils-dev
+      - libusb-dev
+
+# Run builds for all the supported trains
+rust:
+  - nightly
+  - beta
+  - stable
+  - 1.13.0
+
+# Install libusb in MacOS X
+before_install:
+  - |
+      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      brew update;
+      brew install libusb;
+      fi
+
+# Load travis-cargo
+before_script:
+  - |
+      if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      pip install git+https://github.com/btmorex/travis-cargo.git@fix-coveralls --user &&
+      export PATH=$HOME/.local/bin:$PATH
+      fi
+
+# The main build
+script:
+  - |
+      if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      travis-cargo build &&
+      travis-cargo test &&
+      travis-cargo bench;
+      fi
+  - |
+      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      cargo build &&
+      cargo test &&
+      cargo bench;
+      fi
+
+# Send coverage reports and upload docs
+after_success:
+  - |
+      if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      travis-cargo --only stable coveralls --no-sudo --verify;
+      fi
+
+env:
+  global:
+    - TRAVIS_CARGO_NIGHTLY_FEATURE=""

@@ -1,6 +1,6 @@
 [package]
 name = "fel-cli"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Razican <razican@protonmail.ch>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
@@ -12,7 +12,6 @@ keywords = ["arm", "sunxi", "allwinner", "fel"]
 
 [dependencies]
 error-chain = "0.7"
-libusb = "0.3"
-aw-fel = "0.1"
+aw-fel = "0.2"
 clap = "2.19"
 ansi_term = "0.9"

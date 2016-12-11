@@ -16,6 +16,7 @@ pub enum WriteData {
 /// CLI command.
 #[derive(Debug)]
 pub enum Command {
+    Uboot { file: PathBuf, start_uboot: bool },
     /// Dump memory address.
     Dump {
         address: Option<u32>,
@@ -74,7 +75,7 @@ impl Config {
     fn get_device_from_cli(cli: &ArgMatches) -> Result<Option<(u8, u8)>> {
         Ok(match cli.value_of("device") {
             Some(device_str) => {
-                let mut split = device_str.split(":");
+                let mut split = device_str.split(':');
                 let bus = split.next();
                 let addr = split.next();
                 if let (Some(bus), Some(addr), None) = (bus, addr, split.next()) {
@@ -102,7 +103,18 @@ impl Config {
 
     /// Gets the command used in te CLI.
     fn get_command_from_cli(cli: &ArgMatches) -> Result<Option<Command>> {
-        if let Some(dump) = cli.subcommand_matches("dump") {
+        if let Some(spl) = cli.subcommand_matches("spl") {
+            let file = PathBuf::from(spl.value_of("file").unwrap());
+            if file.exists() {
+                Ok(Some(Command::Uboot {
+                    file: file,
+                    start_uboot: spl.is_present("exec"),
+                }))
+            } else {
+                Err(Error::from_kind(ErrorKind::CLI(format!("the file '{}' does not exist",
+                                                            file.display()))))
+            }
+        } else if let Some(dump) = cli.subcommand_matches("dump") {
             if dump.is_present("sid") {
                 Ok(Some(Command::Dump {
                     address: None,
@@ -131,9 +143,9 @@ impl Config {
                             ErrorKind::CLI(format!("dump size must be an integer from 0x00000000 \
                                                     to {:#010x} (the maximum size starting from \
                                                     the given address)",
-                                                   u32::MAX - addr + 1))
+                                                   (u32::MAX - addr).saturating_add(1)))
                         })?;
-                    if size > u32::MAX - addr + 1 {
+                    if size > (u32::MAX - addr).saturating_add(1) {
                         return Err(Error::from_kind(ErrorKind::CLI(format!("dump size must be \
                                                                             an integer from \
                                                                             0x00000000 to \
@@ -141,7 +153,8 @@ impl Config {
                                                                             maximum size \
                                                                             starting from the \
                                                                             given address)",
-                                                                           u32::MAX - addr + 1))));
+                                                                           (u32::MAX - addr)
+                                                                           .saturating_add(1)))));
                     }
                     Some(size)
                 } else {
@@ -202,7 +215,7 @@ impl Config {
                             if path.exists() {
                                 let metadata = path.metadata()
                                     .chain_err(|| "could not read file metadata")?;
-                                let max_bytes = (u32::MAX - addr + 1) as u64;
+                                let max_bytes = (u32::MAX - addr).saturating_add(1) as u64;
                                 if metadata.len() > max_bytes {
                                     let err_msg = format!("the file '{}' is too big. The maximum \
                                                            file size to write to address \
@@ -281,15 +294,16 @@ impl Config {
                     ErrorKind::CLI(format!("the number of bytes to clear must be an integer from \
                                             0x00000000 to {:#010x} (the maximum size starting \
                                             from the given address)",
-                                           u32::MAX - addr + 1))
+                                           (u32::MAX - addr).saturating_add(1)))
                 })?;
-            if num_bytes > u32::MAX - addr + 1 {
+            if num_bytes > (u32::MAX - addr).saturating_add(1) {
                 return Err(Error::from_kind(ErrorKind::CLI(format!("clear size must be an \
                                                                     integer from 0x00000000 \
                                                                     to {:#010x} (the maximum \
                                                                     size starting from the \
                                                                     given address)",
-                                                                   u32::MAX - addr + 1))));
+                                                                   (u32::MAX - addr)
+                                                                       .saturating_add(1)))));
             }
 
             Ok(Some(Command::Clear {
@@ -317,7 +331,7 @@ impl Config {
                     ErrorKind::CLI(format!("the number of bytes to fill must be an integer from \
                                             0x00000000 to {:#010x} (the maximum size starting \
                                             from the given address)",
-                                           u32::MAX - addr + 1))
+                                           (u32::MAX - addr).saturating_add(1)))
                 })?;
             let fill_byte_str = fill.value_of("fill_byte").unwrap();
             let fill_byte = if fill_byte_str.starts_with("0x") {
