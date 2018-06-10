@@ -1,6 +1,6 @@
-use clap::{App, SubCommand, Arg};
+use clap::{App, Arg, SubCommand};
 
-pub fn generate_cli() -> App<'static, 'static> {
+pub fn generate() -> App<'static, 'static> {
     App::new("Tools for Allwinner devices in FEL mode")
         .version(crate_version!())
         .author("Iban Eguia (Razican) <razican@protonmail.ch>")

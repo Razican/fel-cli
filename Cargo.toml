@@ -12,7 +12,7 @@ keywords = ["arm", "sunxi", "allwinner", "fel"]
 categories = ["embedded", "command-line-utilities"]
 
 [dependencies]
-error-chain = "0.9"
-aw-fel = "0.3"
-clap = "2.20"
-ansi_term = "0.9"
+failure = "0.1.1"
+aw-fel = "0.4.0"
+clap = "2.31.2"
+ansi_term = "0.11.0"
