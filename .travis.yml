@@ -27,7 +27,6 @@ rust:
 before_script:
 - export PATH=$PATH:~/.cargo/bin
 - "./travis-helper.sh install_deps"
-- echo "CLIPPY = $CLIPPY"
 
 # Run the multiple tests.
 script:

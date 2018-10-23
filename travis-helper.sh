@@ -3,14 +3,9 @@
 action="$1"
 
 if [ "$action" = "install_deps" ]; then
-  # Install rustfmt.
+  # Install rustfmt and clippy.
   if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_RUST_VERSION" == "stable" ]]; then
-    rustup component add rustfmt-preview
-  fi
-
-  # Install Clippy.
-  if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_RUST_VERSION" == "nightly" ]]; then
-    cargo install clippy --force --verbose && export CLIPPY=true || export CLIPPY=false
+    rustup component add rustfmt-preview clippy-preview
   fi
 
 # Build the project with default features.
@@ -27,14 +22,14 @@ elif [ "$action" = "test" ]; then
 
 # Run Clippy.
 elif [ "$action" = "clippy_run" ]; then
-  if [[ "$TRAVIS_RUST_VERSION" == "nightly" && "$TRAVIS_OS_NAME" == "linux" && $CLIPPY ]]; then
+  if [[ "$TRAVIS_RUST_VERSION" == "stable" && "$TRAVIS_OS_NAME" == "linux" ]]; then
     cargo clippy --verbose
   fi
 
 # Check formatting.
 elif [ "$action" = "fmt_run" ]; then
-  if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_RUST_VERSION" == "stable" ]]; then
-      cargo fmt --verbose -- --write-mode=diff
+  if [[ "$TRAVIS_RUST_VERSION" == "stable" && "$TRAVIS_OS_NAME" == "linux" ]]; then
+      cargo fmt --verbose -- --check
   fi
 
 # Upload code coverage report for stable builds in Linux.

@@ -218,7 +218,8 @@ impl Config {
                     Err(e) => {
                         let path = PathBuf::from(value_str);
                         if path.exists() {
-                            let metadata = path.metadata().context("could not read file metadata")?;
+                            let metadata =
+                                path.metadata().context("could not read file metadata")?;
                             let max_bytes = u64::from((u32::max_value() - addr).saturating_add(1));
                             if metadata.len() > max_bytes {
                                 let err_msg = format!(

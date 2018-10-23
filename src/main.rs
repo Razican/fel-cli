@@ -4,9 +4,17 @@
 #![forbid(anonymous_parameters)]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy_pedantic))]
 #![deny(
-    variant_size_differences, unused_results, unused_qualifications, unused_import_braces,
-    unsafe_code, trivial_numeric_casts, trivial_casts, missing_docs, unused_extern_crates,
-    missing_debug_implementations, missing_copy_implementations
+    variant_size_differences,
+    unused_results,
+    unused_qualifications,
+    unused_import_braces,
+    unsafe_code,
+    trivial_numeric_casts,
+    trivial_casts,
+    missing_docs,
+    unused_extern_crates,
+    missing_debug_implementations,
+    missing_copy_implementations
 )]
 #![cfg_attr(feature = "cargo-clippy", allow(cast_possible_truncation))]
 
@@ -44,7 +52,7 @@ fn main() {
     if let Err(e) = run() {
         eprintln!("{} {}\n", Red.bold().paint("error:"), e);
 
-        for e in e.causes().skip(1) {
+        for e in e.iter_causes() {
             eprintln!("  {} {}\n", Style::new().bold().paint("caused_by:"), e);
         }
 
@@ -141,7 +149,9 @@ fn run() -> Result<(), Error> {
                 if hex {
                     hex_dump(&result, address);
                 } else if let Some(ref out_path) = *out {
-                    let mut file = BufWriter::new(File::create(out_path).context("unable to create output file")?);
+                    let mut file = BufWriter::new(
+                        File::create(out_path).context("unable to create output file")?,
+                    );
                     file.write_all(&result)
                         .context("unable to write dumped data to file")?;
                 } else {
