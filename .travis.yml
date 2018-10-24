@@ -3,64 +3,45 @@ cache: cargo
 dist: trusty
 sudo: false
 os:
-  - linux
-  - osx
+- linux
+- osx
+
 addons:
   apt:
     packages:
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - binutils-dev
-      - libusb-dev
-      - libusb
+    - libcurl4-openssl-dev
+    - libelf-dev
+    - libdw-dev
+    - binutils-dev
+    - libusb-1.0-0
+    - libusb-1.0-0-dev
+    - pkg-config
 
 # Run builds for all the supported trains
 rust:
   - nightly
   - beta
   - stable
-  - 1.14.0
-  - 1.13.0
+  - 1.26.2
 
-# Install libusb in MacOS X
-before_install:
-  - |
-      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      brew update;
-      brew install libusb;
-      fi
-
-# Load travis-cargo
 before_script:
-  - |
-      if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      pip install git+https://github.com/btmorex/travis-cargo.git@fix-coveralls --user &&
-      export PATH=$HOME/.local/bin:$PATH
-      fi
+- export PATH=$PATH:~/.cargo/bin
+- "./travis-helper.sh install_deps"
 
-# The main build
+# Run the multiple tests.
 script:
-  - |
-      if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      travis-cargo build &&
-      travis-cargo test &&
-      travis-cargo bench;
-      fi
-  - |
-      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      cargo build &&
-      cargo test &&
-      cargo bench;
-      fi
+- "./travis-helper.sh build"
+- "./travis-helper.sh package"
+- "./travis-helper.sh test"
+- "./travis-helper.sh clippy_run"
+- "./travis-helper.sh fmt_run"
 
-# Send coverage reports and upload docs
+# Upload code coverage report and documentation.
 after_success:
-  - |
-      if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      travis-cargo --only stable coveralls --no-sudo --verify;
-      fi
+- "./travis-helper.sh upload_code_coverage"
+- "./travis-helper.sh upload_documentation"
 
-env:
-  global:
-    - TRAVIS_CARGO_NIGHTLY_FEATURE=""
+notifications:
+  email:
+    on_success: change
+    on_failure: always
