@@ -110,8 +110,11 @@ fn run() -> Result<(), Error> {
 
             if contents.len() > SPL_LEN_LIMIT as usize {
                 let (entry_point, _) = device
-                    .write_uboot_image(&contents[SPL_LEN_LIMIT as usize..])
-                    .context("could not write U-Boot image to device after writting the SPL")?;
+                    .write_uboot_image(
+                        &contents
+                            .get(SPL_LEN_LIMIT as usize..)
+                            .ok_or_else(|| format_err!("image file is not big enough"))?,
+                    ).context("could not write U-Boot image to device after writting the SPL")?;
                 if start_uboot {
                     device
                         .fel_execute(entry_point)
