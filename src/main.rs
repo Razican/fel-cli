@@ -1,9 +1,9 @@
 //! C.H.I.P. flasher.
 
-#![cfg_attr(feature = "cargo-clippy", deny(clippy))]
 #![forbid(anonymous_parameters)]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy_pedantic))]
+#![warn(clippy::pedantic)]
 #![deny(
+    clippy::all,
     variant_size_differences,
     unused_results,
     unused_qualifications,
@@ -16,27 +16,21 @@
     missing_debug_implementations,
     missing_copy_implementations
 )]
-#![cfg_attr(feature = "cargo-clippy", allow(cast_possible_truncation))]
+#![allow(clippy::cast_possible_truncation)]
 
-#[macro_use]
-extern crate failure;
-extern crate aw_fel;
-#[macro_use]
-extern crate clap;
-extern crate ansi_term;
+use std::{
+    fs::File,
+    io::{self, BufReader, BufWriter, Read, Write},
+};
 
-use std::fs::File;
-use std::io::{self, BufReader, BufWriter, Read, Write};
-
-use ansi_term::Colour::Red;
-use ansi_term::Style;
+use ansi_term::{Colour::Red, Style};
 use aw_fel::{Fel, SPL_LEN_LIMIT};
-use failure::{Error, ResultExt};
+use failure::{bail, format_err, Error, Fail, ResultExt};
 
 mod cli;
 mod config;
 
-use config::{Command, Config, WriteData};
+use crate::config::{Command, Config, WriteData};
 
 const HEX_DUMP_LINE: usize = 0x10;
 
@@ -114,7 +108,8 @@ fn run() -> Result<(), Error> {
                         &contents
                             .get(SPL_LEN_LIMIT as usize..)
                             .ok_or_else(|| format_err!("image file is not big enough"))?,
-                    ).context("could not write U-Boot image to device after writting the SPL")?;
+                    )
+                    .context("could not write U-Boot image to device after writing the SPL")?;
                 if start_uboot {
                     device
                         .fel_execute(entry_point)

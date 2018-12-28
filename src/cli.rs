@@ -1,4 +1,4 @@
-use clap::{App, Arg, SubCommand};
+use clap::{crate_version, App, Arg, SubCommand};
 
 pub fn generate() -> App<'static, 'static> {
     App::new("Tools for Allwinner devices in FEL mode")
@@ -44,7 +44,7 @@ pub fn generate() -> App<'static, 'static> {
                 .long("sid")
                 .conflicts_with_all(&["addr", "size", "hex", "out"]))
             .arg(Arg::with_name("out")
-                .help("Output binary data to the specified file. Note: it will be overwriten if \
+                .help("Output binary data to the specified file. Note: it will be overwritten if \
                        it already exists")
                 .short("o")
                 .long("out")

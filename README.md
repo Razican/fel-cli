@@ -1,5 +1,9 @@
 # CLI tools for Allwinner devices in FEL mode
 
+[![Build Status][build_svg]][build_status]
+[![codecov][coverage_svg]][coverage_status]
+[![Crates.io][crate_svg]][crate_link]
+
 Tools based in [sunxi-tools](sunxi-tools) for using Allwinner devices in FEL
 mode.
 
@@ -74,3 +78,10 @@ This code is distributed under the terms of both the MIT license and the Apache
 License (Version 2.0). See LICENSE-APACHE, and LICENSE-MIT for details.
 
 [sunxi-tools]: https://github.com/linux-sunxi/sunxi-tools
+
+[build_svg]: https://travis-ci.org/Razican/fel-cli.svg?branch=master
+[build_status]: https://travis-ci.org/Razican/fel-cli
+[coverage_svg]: https://codecov.io/gh/Razican/fel-cli/branch/master/graph/badge.svg
+[coverage_status]: https://codecov.io/gh/Razican/fel-cli
+[crate_svg]: https://meritbadge.herokuapp.com/fel-cli
+[crate_link]: https://crates.io/crates/fel-cli
