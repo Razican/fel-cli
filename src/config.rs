@@ -85,13 +85,13 @@ impl Config {
                     Some((
                         bus.parse::<u8>().context(CliError {
                             description: format!(
-                                "bus number must be an integeer between 0 and {}",
+                                "bus number must be an integer between 0 and {}",
                                 u8::max_value()
                             ),
                         })?,
                         addr.parse::<u8>().context(CliError {
                             description: format!(
-                                "device address must be an integeer between 0 and {}",
+                                "device address must be an integer between 0 and {}",
                                 u8::max_value()
                             ),
                         })?,
@@ -99,7 +99,8 @@ impl Config {
                 } else {
                     return Err(CliError {
                         description: "Device must be in `bus:addr` format".to_owned(),
-                    }.into());
+                    }
+                    .into());
                 }
             }
             None => None,
@@ -118,7 +119,8 @@ impl Config {
             } else {
                 Err(CliError {
                     description: format!("the file '{}' does not exist", file.display()),
-                }.into())
+                }
+                .into())
             }
         } else if let Some(dump) = cli.subcommand_matches("dump") {
             if dump.is_present("sid") {
@@ -135,7 +137,8 @@ impl Config {
                     u32::from_str_radix(addr_str.trim_left_matches("0x"), 16)
                 } else {
                     u32::from_str_radix(addr_str, 10)
-                }.context(CliError {
+                }
+                .context(CliError {
                     description: format!(
                         "memory address must be an integer from 0x00000000 to {:#010x}",
                         u32::max_value()
@@ -146,7 +149,8 @@ impl Config {
                         u32::from_str_radix(size_str.trim_left_matches("0x"), 16)
                     } else {
                         u32::from_str_radix(size_str, 10)
-                    }.context(CliError {
+                    }
+                    .context(CliError {
                         description: format!(
                             "dump size must be an integer from 0x00000000 to {:#010x} (the \
                              maximum size starting from the given address)",
@@ -160,7 +164,8 @@ impl Config {
                                  maximum size starting from the given address)",
                                 (u32::max_value() - addr).saturating_add(1)
                             ),
-                        }.into());
+                        }
+                        .into());
                     }
                     Some(size)
                 } else {
@@ -185,7 +190,8 @@ impl Config {
                     u32::from_str_radix(addr_str.trim_left_matches("0x"), 16)
                 } else {
                     u32::from_str_radix(addr_str, 10)
-                }.context(CliError {
+                }
+                .context(CliError {
                     description: format!(
                         "memory address must be an integer from 0x00000000 to {:#010x}, given \
                          '{}'",
@@ -212,7 +218,8 @@ impl Config {
                             );
                             return Err(CliError {
                                 description: err_msg,
-                            }.into());
+                            }
+                            .into());
                         }
                     }
                     Err(e) => {
@@ -232,19 +239,21 @@ impl Config {
                                 );
                                 return Err(CliError {
                                     description: err_msg,
-                                }.into());
+                                }
+                                .into());
                             }
                             WriteData::File(Box::new(path))
                         } else {
                             return Err(CliError {
                                 description: format!(
                                 "the file '{}' does not exist.\nNote: If you were trying to \
-                                 provide a value, the integeer conversion failed with this error: \
+                                 provide a value, the integer conversion failed with this error: \
                                  {}",
                                 path.display(),
                                 e
                             ),
-                            }.into());
+                            }
+                            .into());
                         }
                     }
                 };
@@ -258,7 +267,8 @@ impl Config {
                 u32::from_str_radix(addr_str.trim_left_matches("0x"), 16)
             } else {
                 u32::from_str_radix(addr_str, 10)
-            }.context(CliError {
+            }
+            .context(CliError {
                 description: format!(
                     "memory address must be an integer from 0x00000000 to {:#010x}, given '{}'",
                     u32::max_value(),
@@ -272,7 +282,8 @@ impl Config {
                 u32::from_str_radix(addr_str.trim_left_matches("0x"), 16)
             } else {
                 u32::from_str_radix(addr_str, 10)
-            }.context(CliError {
+            }
+            .context(CliError {
                 description: format!(
                     "memory address must be an integer from 0x00000000 to {:#010x}, given '{}'",
                     u32::max_value(),
@@ -288,7 +299,8 @@ impl Config {
                 u32::from_str_radix(addr_str.trim_left_matches("0x"), 16)
             } else {
                 u32::from_str_radix(addr_str, 10)
-            }.context(CliError {
+            }
+            .context(CliError {
                 description: format!(
                     "memory address must be an integer from 0x00000000 to {:#010x}, given '{}'",
                     u32::max_value(),
@@ -300,7 +312,8 @@ impl Config {
                 u32::from_str_radix(num_bytes_str.trim_left_matches("0x"), 16)
             } else {
                 u32::from_str_radix(num_bytes_str, 10)
-            }.context(CliError {
+            }
+            .context(CliError {
                 description: format!(
                     "the number of bytes to clear must be an integer from 0x00000000 to {:#010x} \
                      (the maximum size starting from the given address)",
@@ -314,7 +327,8 @@ impl Config {
                      starting from the given address)",
                     (u32::max_value() - address).saturating_add(1)
                 ),
-                }.into());
+                }
+                .into());
             }
 
             Ok(Some(Command::Clear { address, num_bytes }))
@@ -324,7 +338,8 @@ impl Config {
                 u32::from_str_radix(addr_str.trim_left_matches("0x"), 16)
             } else {
                 u32::from_str_radix(addr_str, 10)
-            }.context(CliError {
+            }
+            .context(CliError {
                 description: format!(
                     "memory address must be an integer from 0x00000000 to {:#010x}, given '{}'",
                     u32::max_value(),
@@ -336,7 +351,8 @@ impl Config {
                 u32::from_str_radix(num_bytes_str.trim_left_matches("0x"), 16)
             } else {
                 u32::from_str_radix(num_bytes_str, 10)
-            }.context(CliError {
+            }
+            .context(CliError {
                 description: format!(
                     "the number of bytes to fill must be an integer from 0x00000000 to {:#010x} \
                      (the maximum size starting from the given address)",
@@ -348,7 +364,8 @@ impl Config {
                 u8::from_str_radix(fill_byte_str.trim_left_matches("0x"), 16)
             } else {
                 u8::from_str_radix(fill_byte_str, 10)
-            }.context(CliError {
+            }
+            .context(CliError {
                 description: format!(
                     "the filling byte must be an integer from 0x00 to {:#04x}, given '{}'",
                     u8::max_value(),
