@@ -63,7 +63,7 @@ fn run() -> Result<(), Error> {
         );
         return Ok(());
     }
-    let fel = Fel::new().context("unable to initialize the tool")?;
+    let fel = Fel::initialize().context("unable to initialize the tool")?;
 
     let device = if let Some((bus, addr)) = config.get_device() {
         if let Some(device) = fel.get_device(bus, addr)? {
